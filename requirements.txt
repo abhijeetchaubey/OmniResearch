@@ -1,0 +1,19 @@
+# Backend
+fastapi
+uvicorn[standard]
+
+# Configuration
+python-dotenv
+pydantic
+pydantic-settings
+
+# LLM
+langchain
+langchain-groq
+
+# Agent orchestration
+langgraph
+
+# HTTP / API utilities
+httpx
+requests
