@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any,Optional
 from pydantic import BaseModel, Field
 from backend.agents.planner.schema import StructuredResearchPlan
 
@@ -23,4 +23,9 @@ class ResearchPlanResponse(BaseModel):
     status: str = Field(..., description="Status of the research workflow execution")
     plan: StructuredResearchPlan = Field(..., description="Generated structured research plan")
     papers: List[Dict[str, Any]] = Field(default_factory=list, description="Scholarly papers discovered by Literature Agent")
+    retrieved_evidence: List[Dict[str, Any]] = Field(default_factory=list, description="Empirical evidence extracted from papers")
+    execution_summary: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Detailed execution breakdown of completed, partial, stub, and failed tasks"
+    )
 

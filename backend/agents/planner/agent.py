@@ -37,7 +37,7 @@ class PlannerAgent:
                 model_name=self.model_name,
                 temperature=0.2,
             )
-            return llm.with_structured_output(StructuredResearchPlan)
+            return llm.with_structured_output(StructuredResearchPlan, method="json_schema")
         except ImportError as ie:
             logger.warning(f"langchain_groq package is not installed in current python environment: {ie}")
             return None

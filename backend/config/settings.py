@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     API_PORT: int = 8000
 
+    # Literature Agent Configuration
+    OPENALEX_API_KEY: Optional[str] = None
+    SEMANTIC_SCHOLAR_API_KEY: Optional[str] = None
+    LITERATURE_SEARCH_LIMIT: int = 10
+    LITERATURE_TIMEOUT_SECONDS: float = 10.0
+    LITERATURE_MIN_RELEVANCE_THRESHOLD: float = 0.20
+    LITERATURE_MAX_RETRIES: int = 2
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -22,3 +30,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

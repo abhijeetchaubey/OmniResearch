@@ -29,3 +29,4 @@ class ResearchState(TypedDict, total=False):
     errors: List[Dict[str, Any]]
     report: str
     status: str
+    execution_summary: Optional[Dict[str, Any]]

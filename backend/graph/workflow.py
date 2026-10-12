@@ -22,10 +22,10 @@ def create_research_workflow():
     """
     Constructs and compiles the LangGraph research workflow.
     Workflow:
-      START -> planner -> task_router
-      task_router -> literature_agent -> task_router
-      task_router -> task_executor -> task_router
-      task_router -> END
+    START -> planner -> task_router
+    task_router -> literature_agent -> task_router
+    task_router -> task_executor -> task_router
+    task_router -> END
     """
     builder = StateGraph(ResearchState)
 

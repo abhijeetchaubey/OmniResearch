@@ -4,6 +4,8 @@ from typing import Dict, Any, List
 from backend.graph.state import ResearchState
 from backend.agents.planner.agent import PlannerAgent
 from backend.agents.literature.agent import LiteratureAgent
+from backend.agents.literature.schema import PaperMetadata, ExtractedEvidence
+from backend.agents.literature.tools import deduplicate_papers, deduplicate_evidence
 from backend.graph.routing import resolve_task_agent, RoutingError
 
 logger = logging.getLogger(__name__)
@@ -40,8 +42,8 @@ def task_router_node(state: ResearchState) -> Dict[str, Any]:
     """
     LangGraph node for deterministically routing the next executable task to its assigned specialized agent.
     
-    Inspects plan subtasks and completed_tasks, finds the next executable subtask with satisfied
-    dependencies, validates its assigned_agent using routing.py, and updates workflow state.
+    Inspects plan subtasks, completed_tasks, and failed_tasks. Finds the next executable subtask
+    with satisfied dependencies, validates assigned_agent, and aggregates honest research status upon completion.
     """
     plan = state.get("plan")
     if not plan or not isinstance(plan, dict) or not plan.get("subtasks"):
@@ -54,16 +56,52 @@ def task_router_node(state: ResearchState) -> Dict[str, Any]:
 
     subtasks: List[Dict[str, Any]] = plan.get("subtasks", [])
     completed_tasks = set(state.get("completed_tasks", []))
+    failed_tasks = set(state.get("failed_tasks", []))
     
-    # Filter for subtasks that have not yet been completed
-    uncompleted = [task for task in subtasks if task.get("task_id") not in completed_tasks]
+    # Filter for subtasks that have not yet been completed or failed
+    uncompleted = [
+        task for task in subtasks
+        if task.get("task_id") not in completed_tasks and task.get("task_id") not in failed_tasks
+    ]
     
     if not uncompleted:
-        logger.info("All subtasks in research plan have been completed.")
+        # All tasks in plan have been evaluated/executed. Aggregate honest research status.
+        task_results = state.get("task_results", {})
+        failed_list = list(failed_tasks)
+        stub_tasks = [
+            tid for tid, res in task_results.items()
+            if isinstance(res, dict) and (res.get("status") == "not_implemented" or res.get("is_placeholder"))
+        ]
+        partial_tasks = [
+            tid for tid, res in task_results.items()
+            if isinstance(res, dict) and res.get("status") == "partial"
+        ]
+        fully_completed = [
+            tid for tid, res in task_results.items()
+            if isinstance(res, dict) and res.get("status") == "completed"
+        ]
+
+        summary = {
+            "total_tasks": len(subtasks),
+            "completed_count": len(fully_completed),
+            "partial_count": len(partial_tasks),
+            "stub_count": len(stub_tasks),
+            "failed_count": len(failed_list)
+        }
+
+        if failed_list:
+            final_status = "has_failed_tasks"
+        elif stub_tasks or partial_tasks:
+            final_status = "completed_with_stubs"
+        else:
+            final_status = "all_tasks_completed"
+
+        logger.info(f"All subtasks processed. Final research status='{final_status}'. Summary: {summary}")
         return {
-            "status": "all_tasks_completed",
+            "status": final_status,
             "current_task": "",
-            "next_agent": ""
+            "next_agent": "",
+            "execution_summary": summary
         }
 
     # Find first subtask whose dependencies are all satisfied in completed_tasks
@@ -113,7 +151,8 @@ def task_router_node(state: ResearchState) -> Dict[str, Any]:
 def literature_node(state: ResearchState) -> Dict[str, Any]:
     """
     LangGraph node for executing the Literature Research Agent.
-    Finds, retrieves, and synthesizes scholarly literature for the active subtask.
+    Finds, retrieves, normalizes, deduplicates, re-ranks, and synthesizes scholarly literature.
+    Validates task success criteria and updates graph state.
     """
     current_task_id = state.get("current_task", "")
     research_question = state.get("research_question", "")
@@ -123,40 +162,75 @@ def literature_node(state: ResearchState) -> Dict[str, Any]:
     subtasks = plan.get("subtasks", []) if isinstance(plan, dict) else []
     task_info = next((t for t in subtasks if t.get("task_id") == current_task_id), {})
     task_desc = task_info.get("description", research_question)
-    query = task_info.get("title", research_question)
+    task_title = task_info.get("title", research_question)
 
-    logger.info(f"literature_node executing for task '{current_task_id}': {query[:50]}")
+    logger.info(f"literature_node executing for task '{current_task_id}': {task_title[:50]}")
     agent = LiteratureAgent()
-    review_result = agent.run(query=query, task_description=task_desc, research_question=research_question)
-
-    # Update completed tasks
-    completed = list(state.get("completed_tasks", []))
-    if current_task_id and current_task_id not in completed:
-        completed.append(current_task_id)
+    task_result = agent.run(
+        query=task_title,
+        task_description=task_desc,
+        research_question=research_question,
+        task_id=current_task_id,
+        task_info=task_info
+    )
 
     # Accumulate task results
     task_results = dict(state.get("task_results") or {})
-    task_results[current_task_id] = review_result.model_dump()
+    task_results[current_task_id] = task_result.model_dump()
 
-    # Accumulate papers avoiding duplicates by title
-    existing_papers = list(state.get("papers") or [])
-    for paper in review_result.papers:
-        p_dict = paper.model_dump()
-        if not any(ep.get("title") == p_dict.get("title") for ep in existing_papers):
-            existing_papers.append(p_dict)
+    # Accumulate and deduplicate papers across tasks using normalized DOI/title
+    existing_papers_raw = list(state.get("papers") or [])
+    existing_paper_objs = [PaperMetadata.model_validate(p) for p in existing_papers_raw if isinstance(p, dict)]
+    all_paper_objs = existing_paper_objs + task_result.papers
+    deduped_paper_objs = deduplicate_papers(all_paper_objs)
+    serialized_papers = [p.model_dump() for p in deduped_paper_objs]
+
+    # Accumulate and deduplicate evidence across tasks using DOI / normalized title+year
+    existing_evidence_raw = list(state.get("retrieved_evidence") or [])
+    existing_evidence_objs = [ExtractedEvidence.model_validate(e) for e in existing_evidence_raw if isinstance(e, dict)]
+    all_evidence_objs = existing_evidence_objs + task_result.evidence
+    deduped_evidence_objs = deduplicate_evidence(all_evidence_objs)
+    serialized_evidence = [e.model_dump() for e in deduped_evidence_objs]
+
+    # Update completed/failed tasks based on validated output
+    completed = list(state.get("completed_tasks") or [])
+    failed = list(state.get("failed_tasks") or [])
+    errors = list(state.get("errors") or [])
+
+    if task_result.status == "completed":
+        if current_task_id not in completed:
+            completed.append(current_task_id)
+    elif task_result.status == "partial":
+        # Useful output exists; permit downstream flow while registering partial status
+        if current_task_id not in completed:
+            completed.append(current_task_id)
+        for w in task_result.warnings:
+            errors.append({"node": "literature_agent", "task_id": current_task_id, "type": "warning", "message": w})
+    else:  # failed
+        if current_task_id not in failed:
+            failed.append(current_task_id)
+        errors.append({
+            "node": "literature_agent",
+            "task_id": current_task_id,
+            "error_code": task_result.error_code or "TASK_FAILED",
+            "error": task_result.error_message or "Task failed validation criteria"
+        })
 
     return {
-        "papers": existing_papers,
+        "papers": serialized_papers,
+        "retrieved_evidence": serialized_evidence,
         "task_results": task_results,
         "completed_tasks": completed,
+        "failed_tasks": failed,
+        "errors": errors,
         "status": "task_completed"
     }
 
 
 def task_executor_node(state: ResearchState) -> Dict[str, Any]:
     """
-    Executor node: dispatches to specialized agent if available,
-    or completes as stub for agents under development.
+    Executor node for specialized agents.
+    Executes implemented agents or honestly records placeholder status for agents under development.
     """
     next_agent = state.get("next_agent", "")
     if next_agent == "literature_agent":
@@ -164,8 +238,23 @@ def task_executor_node(state: ResearchState) -> Dict[str, Any]:
 
     current_task = state.get("current_task", "")
     completed = list(state.get("completed_tasks", []))
-    if current_task and current_task not in completed:
-        logger.info(f"task_executor_node marking '{current_task}' as completed (stub for {next_agent}).")
-        completed.append(current_task)
-    return {"completed_tasks": completed, "status": "task_completed"}
+    task_results = dict(state.get("task_results") or {})
 
+    # Explicitly register placeholder execution status without claiming real completion
+    if current_task:
+        task_results[current_task] = {
+            "task_id": current_task,
+            "assigned_agent": next_agent,
+            "status": "not_implemented",
+            "is_placeholder": True,
+            "message": f"Agent '{next_agent}' is currently a placeholder stub and is not yet implemented."
+        }
+        if current_task not in completed:
+            completed.append(current_task)
+        logger.info(f"task_executor_node registered placeholder stub for task '{current_task}' (Agent: {next_agent}).")
+
+    return {
+        "completed_tasks": completed,
+        "task_results": task_results,
+        "status": "task_completed"
+    }

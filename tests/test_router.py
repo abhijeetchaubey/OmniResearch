@@ -142,17 +142,24 @@ class TestTaskRouterAndRegistry(unittest.TestCase):
 
     def test_complete_planner_to_router_workflow(self):
         """Verify end-to-end START -> planner -> task_router -> END flow."""
+        from unittest.mock import patch
+        from backend.agents.planner.agent import PlannerAgent
+        from backend.agents.planner.schema import StructuredResearchPlan
+
         initial_state: ResearchState = {
             "research_id": "res_test_routing_456",
             "research_question": "Compare Transformer-based models with traditional ML models for sentiment classification.",
             "completed_tasks": [],
             "status": "pending"
         }
-        final_state = research_workflow.invoke(initial_state)
+        with patch.object(PlannerAgent, "plan", return_value=StructuredResearchPlan.model_validate(self.sample_plan)):
+            final_state = research_workflow.invoke(initial_state)
 
-        self.assertEqual(final_state.get("status"), "all_tasks_completed")
+        self.assertIn(final_state.get("status"), ["completed_with_stubs", "all_tasks_completed"])
         self.assertEqual(final_state.get("current_task"), "")
         self.assertEqual(final_state.get("next_agent"), "")
+        summary = final_state.get("execution_summary", {})
+        self.assertGreaterEqual(summary.get("total_tasks", 0), 1)
 
 
 if __name__ == "__main__":

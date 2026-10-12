@@ -27,6 +27,7 @@ RULES:
 2. Mark tasks as 'parallel' ONLY when they have no mutual dependencies and can execute simultaneously. Otherwise mark as 'sequential'.
 3. Each subtask MUST have clear, concrete, objective success criteria and expected output.
 4. Be realistic, thorough, and specific to the AI/ML domain in the research question.
+5. Output must strictly conform to the expected JSON schema response format.
 """
 
 PLANNER_HUMAN_PROMPT_TEMPLATE = """Research Question: {research_question}
