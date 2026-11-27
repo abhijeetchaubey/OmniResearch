@@ -74,10 +74,13 @@ OmniResearch/
 The key idea is to transform an unstructured research prompt into a clear, executable research plan.
 
 - The Planner Agent decomposes the question into manageable subtasks.
+- Each plan includes three main objectives.
 - Each subtask has a title, description, expected output, success criteria, and dependencies.
 - The routing layer ensures tasks are only executed when their prerequisites are satisfied.
 - Specialized agents handle distinct phases of the research process.
 - The workflow can be extended and adapted as more research capabilities are added.
+
+Literature results include a source-linked comparison table with publication year, authors, methods, reported findings, results, datasets, and limitations. Numerical results retain their supporting source text. Dataset names and their availability are not inferred: availability is marked as unverified unless separately checked. Dataset discovery, experiment execution, verification, and report-writing agents are currently placeholders.
 
 ## Getting started
 

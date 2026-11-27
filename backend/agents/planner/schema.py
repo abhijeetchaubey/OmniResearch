@@ -83,6 +83,12 @@ class StructuredResearchPlan(BaseModel):
         ...,
         description="Title of the research project based on user question"
     )
+    objectives: List[str] = Field(
+        ...,
+        min_length=3,
+        max_length=3,
+        description="Exactly three research-question-specific main objectives"
+    )
     overview: str = Field(
         ...,
         description="Executive summary of the research methodology and goals"

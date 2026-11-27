@@ -205,6 +205,56 @@ class LiteratureAgent:
         if not papers:
             return f"### Literature Review: {task_title}\n\nNo relevant scholarly papers were retrieved for this task."
 
+        def table_cell(value: Any) -> str:
+            return (
+                str(value).replace("|", "\\|").replace("\r", " ").replace("\n", " ").strip()
+                or "Not stated in abstract"
+            )
+
+        evidence_by_paper = {item.paper_id: item for item in evidence}
+        comparison_lines = [
+            "| Year | Author | Method | Reported advantage / finding | Results and source evidence | Dataset(s) | Limitations | Source |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |"
+        ]
+        for paper in papers:
+            paper_evidence = evidence_by_paper.get(paper.paper_id)
+            methods = ", ".join(paper_evidence.models_or_algorithms) if paper_evidence else ""
+            findings = "; ".join(paper_evidence.key_findings) if paper_evidence else ""
+            results = []
+            if paper_evidence:
+                for result in paper_evidence.reported_results:
+                    result_text = f"{result.get('metric', 'Metric')}: {result.get('value', 'Not stated')}"
+                    if result.get("dataset"):
+                        result_text += f" ({result['dataset']})"
+                    if result.get("source_text"):
+                        result_text += f' - "{result["source_text"][:240]}"'
+                    results.append(result_text)
+            datasets = (
+                ", ".join(paper_evidence.datasets)
+                if paper_evidence and paper_evidence.datasets
+                else "Not identified in abstract"
+            )
+            limitations = list(paper_evidence.limitations) if paper_evidence else []
+            limitations.append("Dataset availability/access not verified.")
+            source = f"[Link]({paper.url})" if paper.url else table_cell(paper.paper_id)
+            comparison_lines.append(
+                "| " + " | ".join([
+                    table_cell(paper.year or "Unknown"),
+                    table_cell(", ".join(paper.authors) or "Unknown"),
+                    table_cell(methods),
+                    table_cell(findings),
+                    table_cell("; ".join(results)),
+                    table_cell(datasets),
+                    table_cell("; ".join(limitations)),
+                    source
+                ]) + " |"
+            )
+        comparison_table = "\n".join([
+            "#### Comparative Literature Analysis",
+            "",
+            *comparison_lines
+        ])
+
         # If LLM key is configured, synthesize via LLM
         if self.api_key and self.api_key != "mock_key_for_testing":
             try:
@@ -232,7 +282,7 @@ class LiteratureAgent:
                     task_description=task_description,
                     papers_text="\n".join(papers_text_items)
                 ))
-                return response.content
+                return f"{response.content}\n\n{comparison_table}"
             except Exception as e:
                 logger.warning(f"LLM literature synthesis failed, falling back to structured synthesis: {e}")
 
@@ -280,7 +330,7 @@ class LiteratureAgent:
         summary_lines.append("- Evidence extracted from published peer-reviewed abstracts and scholarly metadata APIs.")
         summary_lines.append("- Full PDF parsing integration point preserved for deep full-text extraction.")
 
-        return "\n".join(summary_lines)
+        return "\n".join(summary_lines) + "\n\n" + comparison_table
 
     def run(
         self,

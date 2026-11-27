@@ -19,6 +19,7 @@ class TestPlannerAgent(unittest.TestCase):
         plan = agent.plan(self.sample_question)
 
         self.assertIsInstance(plan, StructuredResearchPlan)
+        self.assertEqual(len(plan.objectives), 3)
         self.assertTrue(len(plan.subtasks) >= 4, "Plan should contain at least 4 subtasks")
         
         # Verify subtask categories and agent assignments
@@ -68,8 +69,10 @@ class TestPlannerAgent(unittest.TestCase):
         self.assertIn("research_id", data)
         self.assertIn(data["status"], ["all_tasks_completed", "completed_with_stubs"])
         self.assertIn("plan", data)
+        self.assertIn("literature_reviews", data)
         
         plan = data["plan"]
+        self.assertEqual(len(plan["objectives"]), 3)
         self.assertIn("subtasks", plan)
         self.assertTrue(len(plan["subtasks"]) > 0)
 

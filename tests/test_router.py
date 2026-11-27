@@ -56,6 +56,11 @@ class TestTaskRouterAndRegistry(unittest.TestCase):
 
         self.sample_plan = {
             "title": "Test Research Plan",
+            "objectives": [
+                "Identify relevant literature and candidate datasets.",
+                "Compare methods, results, and limitations using cited evidence.",
+                "Verify claims and report evidence gaps."
+            ],
             "overview": "Overview of research plan",
             "research_question": "Test Question",
             "subtasks": self.sample_subtasks,

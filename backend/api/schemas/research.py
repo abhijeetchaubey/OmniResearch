@@ -24,6 +24,10 @@ class ResearchPlanResponse(BaseModel):
     plan: StructuredResearchPlan = Field(..., description="Generated structured research plan")
     papers: List[Dict[str, Any]] = Field(default_factory=list, description="Scholarly papers discovered by Literature Agent")
     retrieved_evidence: List[Dict[str, Any]] = Field(default_factory=list, description="Empirical evidence extracted from papers")
+    literature_reviews: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Literature summaries and comparative tables generated for literature subtasks"
+    )
     execution_summary: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Detailed execution breakdown of completed, partial, stub, and failed tasks"

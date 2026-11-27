@@ -69,6 +69,11 @@ class PlannerAgent:
         logger.info(f"Generating fallback plan for question: '{research_question}'. Reason: {reason}")
         return StructuredResearchPlan(
             title=f"Research Plan: {research_question[:60]}...",
+            objectives=[
+                "Identify relevant scholarly literature and candidate datasets for the research question.",
+                "Compare research methods, reported results, and limitations using source-backed evidence.",
+                "Verify claims against cited sources and report evidence gaps, including unverified dataset availability."
+            ],
             overview=f"Automated baseline plan generated for: '{research_question}'. (Note: {reason})",
             research_question=research_question,
             estimated_complexity="medium",

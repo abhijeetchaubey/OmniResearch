@@ -250,6 +250,32 @@ class TestOmniResearchLiteratureAgent(unittest.TestCase):
         ev_no_metrics = extract_evidence_from_paper(paper_no_metrics)
         self.assertEqual(len(ev_no_metrics.reported_results), 0, "No metrics must be invented when absent")
 
+    def test_comparative_literature_table_includes_source_and_dataset_caveats(self):
+        agent = LiteratureAgent(api_key="mock_key_for_testing")
+        paper = PaperMetadata(
+            paper_id="paper-without-dataset",
+            title="A Method Without a Named Benchmark",
+            authors=["Researcher, A."],
+            abstract="We propose a robust classifier for text categorization.",
+            year=2025,
+            url="https://example.org/paper"
+        )
+        evidence = extract_evidence_from_paper(paper)
+
+        summary = agent.synthesize_task_summary(
+            task_title="Literature comparison",
+            task_description="Compare methods and evidence.",
+            research_question=self.sample_rq,
+            papers=[paper],
+            evidence=[evidence]
+        )
+
+        self.assertIn("| Year | Author | Method | Reported advantage / finding |", summary)
+        self.assertIn("Researcher, A.", summary)
+        self.assertIn("Not identified in abstract", summary)
+        self.assertIn("Dataset availability/access not verified.", summary)
+        self.assertIn("[Link](https://example.org/paper)", summary)
+
     # --------------------------------------------------------------------------
     # 12 & 13. Task Success Criteria Validation (Completed, Partial, Failed)
     # --------------------------------------------------------------------------

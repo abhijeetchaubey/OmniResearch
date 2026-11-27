@@ -723,7 +723,7 @@ def extract_datasets_from_text(text: str) -> List[str]:
         "spanish", "method", "methods", "approach", "paper", "study", "analysis", "experiments",
         "experiment", "evaluation", "benchmark", "dataset", "corpus", "data", "classification",
         "sentiment", "performance", "task", "tasks", "deep", "learning", "all", "both", "each",
-        "few", "many", "several", "various", "multiple", "existing", "standard", "popular"
+        "few", "many", "several", "various", "multiple", "existing", "standard", "popular", "named"
     }
 
     # 1. Pattern A: Explicit dataset suffix (e.g., "ASTD dataset", "SST-2 benchmark", "TEAD corpus")

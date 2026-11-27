@@ -22,6 +22,8 @@ FOR EACH SUBTASK, YOU MUST PROVIDE:
 10. priority: high | medium | low
 11. success_criteria: Objective, verifiable condition to mark task complete
 
+The research plan must also include exactly three clear, research-question-specific main objectives.
+
 RULES:
 1. Ensure explicit dependency ordering (e.g., dataset and literature tasks come before experiment tasks; experiment tasks before analysis; analysis and verification before writer).
 2. Mark tasks as 'parallel' ONLY when they have no mutual dependencies and can execute simultaneously. Otherwise mark as 'sequential'.

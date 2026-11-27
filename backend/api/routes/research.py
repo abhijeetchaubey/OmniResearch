@@ -45,6 +45,18 @@ async def generate_research_plan(payload: ResearchPlanRequest) -> ResearchPlanRe
             )
 
         structured_plan = StructuredResearchPlan.model_validate(plan_dict)
+        task_results = final_state.get("task_results") or {}
+        literature_reviews = [
+            {
+                "task_id": task_id,
+                "task_title": result.get("task_title", ""),
+                "status": result.get("status", "unknown"),
+                "summary": result["evidence_summary"],
+                "limitations": result.get("limitations", [])
+            }
+            for task_id, result in task_results.items()
+            if isinstance(result, dict) and result.get("evidence_summary")
+        ]
 
         return ResearchPlanResponse(
             research_id=research_id,
@@ -52,6 +64,7 @@ async def generate_research_plan(payload: ResearchPlanRequest) -> ResearchPlanRe
             plan=structured_plan,
             papers=final_state.get("papers", []),
             retrieved_evidence=final_state.get("retrieved_evidence", []),
+            literature_reviews=literature_reviews,
             execution_summary=final_state.get("execution_summary")
         )
     except HTTPException:
